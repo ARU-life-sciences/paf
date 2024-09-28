@@ -2,5 +2,12 @@
 name = "paf"
 version = "0.1.0"
 edition = "2021"
+description = "Parse PAF files"
+authors = ["Max Brown <max.carter-brown@aru.ac.uk>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/ARU-life-sciences/paf"
+keywords = ["parser", "paf"]
+categories = ["parsing"]
 
 [dependencies]
