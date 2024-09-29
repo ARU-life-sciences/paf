@@ -407,12 +407,12 @@ impl<R: io::Read> Reader<R> {
         }
     }
 
-    /// A borrowed iterator over the records of a refer file.
+    /// A borrowed iterator over the records of a PAF file.
     pub fn records(&mut self) -> RecordsIter<R> {
         RecordsIter::new(self)
     }
 
-    /// An owned iterator over the records of a refer file.
+    /// An owned iterator over the records of a PAF file.
     pub fn into_records(self) -> RecordsIntoIter<R> {
         RecordsIntoIter::new(self)
     }
