@@ -24,28 +24,32 @@ impl Type {
             _ => Some(Type::String(value.to_string())), // Default to string
         }
     }
-    /// Get the inner integer out
+
+    /// Get the inner integer out.
     pub fn get_int(&self) -> Option<&i64> {
         match self {
             Type::Int(v) => Some(v),
             _ => None,
         }
     }
-    /// Get the inner float out
+
+    /// Get the inner float out.
     pub fn get_float(&self) -> Option<&f64> {
         match self {
             Type::Float(v) => Some(v),
             _ => None,
         }
     }
-    /// Get the inner string out
+
+    /// Get the inner string out.
     pub fn get_string(&self) -> Option<&String> {
         match self {
             Type::String(v) => Some(v),
             _ => None,
         }
     }
-    /// Get the inner char out
+
+    /// Get the inner char out.
     pub fn get_char(&self) -> Option<&char> {
         match self {
             Type::Char(v) => Some(v),
@@ -58,37 +62,37 @@ impl Type {
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub enum Tag {
-    /// Type of aln: P/primary, S/secondary and I,i/inversion
+    /// Type of aln: P/primary, S/secondary and I,i/inversion.
     tp(Type),
-    /// Number of minimizers on the chain
+    /// Number of minimizers on the chain.
     cm(Type),
-    /// Chaining score
+    /// Chaining score.
     s1(Type),
-    /// Chaining score of the best secondary chain
+    /// Chaining score of the best secondary chain.
     s2(Type),
-    /// Total number of mismatches and gaps in the alignment
+    /// Total number of mismatches and gaps in the alignment.
     NM(Type),
-    /// To generate the ref sequence in the alignment
+    /// To generate the ref sequence in the alignment.
     MD(Type),
-    /// DP alignment score
+    /// DP alignment score.
     AS(Type),
-    /// List of other supplementary alignments
+    /// List of other supplementary alignments.
     SA(Type),
-    /// DP score of the max scoring segment in the alignment
+    /// DP score of the max scoring segment in the alignment.
     ms(Type),
-    /// Number of ambiguous bases in the alignment
+    /// Number of ambiguous bases in the alignment.
     nn(Type),
-    /// Transcript strand (splice mode only)
+    /// Transcript strand (splice mode only).
     ts(Type),
-    /// CIGAR string
+    /// CIGAR string.
     cg(Type),
-    /// Difference string
+    /// Difference string.
     cs(Type),
-    /// Approximate per-base sequence divergence
+    /// Approximate per-base sequence divergence.
     dv(Type),
-    /// Gap-compressed per-base sequence divergence
+    /// Gap-compressed per-base sequence divergence.
     de(Type),
-    /// Length of query regions harboring repetitive seeds
+    /// Length of query regions harboring repetitive seeds.
     rl(Type),
     /// ZD?
     zd(Type),
@@ -149,194 +153,194 @@ impl Tag {
 /// Struct representing a PAF record.
 #[derive(Debug)]
 pub struct PafRecord {
-    /// Query sequence name
+    /// Query sequence name.
     query_name: String,
-    /// Query sequence length
+    /// Query sequence length.
     query_len: u32,
-    /// Query start coordinate (0-based)
+    /// Query start coordinate (0-based).
     query_start: u32,
-    /// Query end coordinate (0-based)
+    /// Query end coordinate (0-based).
     query_end: u32,
-    /// ‘+’ if query/target on the same strand; ‘-’ if opposite
+    /// ‘+’ if query/target on the same strand; ‘-’ if opposite.
     strand: char,
-    /// Target sequence name
+    /// Target sequence name.
     target_name: String,
-    /// Target sequence length
+    /// Target sequence length.
     target_len: u32,
-    /// Target start coordinate on the original strand
+    /// Target start coordinate on the original strand.
     target_start: u32,
-    /// Target end coordinate on the original strand
+    /// Target end coordinate on the original strand.
     target_end: u32,
-    /// Number of matching bases in the mapping
+    /// Number of matching bases in the mapping.
     residue_matches: u32,
-    /// Number bases, including gaps, in the mapping
+    /// Number bases, including gaps, in the mapping.
     alignment_block_len: u32,
-    /// Mapping quality (0-255 with 255 for missing)
+    /// Mapping quality (0-255 with 255 for missing).
     mapping_quality: u8,
 
-    // Optional fields
+    /// The optional fields.
     optional: HashMap<String, Tag>,
 }
 
 impl PafRecord {
-    /// Get the query name
+    /// Get the query name.
     pub fn query_name(&self) -> &str {
         &self.query_name
     }
-    /// Get the query length
+    /// Get the query length.
     pub fn query_len(&self) -> u32 {
         self.query_len
     }
-    /// Get the query start position
+    /// Get the query start position.
     pub fn query_start(&self) -> u32 {
         self.query_start
     }
-    /// Get the query end position
+    /// Get the query end position.
     pub fn query_end(&self) -> u32 {
         self.query_end
     }
-    /// Get the target name
+    /// Get the target name.
     pub fn target_name(&self) -> &str {
         &self.target_name
     }
-    /// Get the target length
+    /// Get the target length.
     pub fn target_len(&self) -> u32 {
         self.target_len
     }
-    /// Get the target start position
+    /// Get the target start position.
     pub fn target_start(&self) -> u32 {
         self.target_start
     }
-    /// Get the target end position
+    /// Get the target end position.
     pub fn target_end(&self) -> u32 {
         self.target_end
     }
-    /// Get the number of residue matches
+    /// Get the number of residue matches.
     pub fn residue_matches(&self) -> u32 {
         self.residue_matches
     }
-    /// Get the alignment block length
+    /// Get the alignment block length.
     pub fn alignment_block_len(&self) -> u32 {
         self.alignment_block_len
     }
-    /// Get the mapping quality
+    /// Get the mapping quality.
     pub fn mapping_quality(&self) -> u8 {
         self.mapping_quality
     }
-    /// Get the strand
+    /// Get the strand.
     pub fn strand(&self) -> char {
         self.strand
     }
-    /// Get all the optional fields
+    /// Get all the optional fields.
     pub fn optional_fields(&self) -> &HashMap<String, Tag> {
         &self.optional
     }
-    /// Get tp
+    /// Get type of aln: P/primary, S/secondary and I,i/inversion.
     pub fn tp(&self) -> Option<&char> {
         self.optional.get("tp").map(|tag| match tag {
             Tag::tp(t) => t.get_char().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get cm
+    /// Get number of minimizers on the chain
     pub fn cm(&self) -> Option<&i64> {
         self.optional.get("cm").map(|tag| match tag {
             Tag::cm(t) => t.get_int().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get s1
+    /// Get chaining score.
     pub fn s1(&self) -> Option<&i64> {
         self.optional.get("s1").map(|tag| match tag {
             Tag::s1(t) => t.get_int().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get s2
+    /// Get chaining score of the best secondary chain.
     pub fn s2(&self) -> Option<&i64> {
         self.optional.get("s2").map(|tag| match tag {
             Tag::s2(t) => t.get_int().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get NM
+    /// Get total number of mismatches and gaps in the alignment.
     pub fn nm(&self) -> Option<&i64> {
         self.optional.get("NM").map(|tag| match tag {
             Tag::NM(t) => t.get_int().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get MD
+    /// Get the ref sequence in the alignment.
     pub fn md(&self) -> Option<&String> {
         self.optional.get("MD").map(|tag| match tag {
             Tag::MD(t) => t.get_string().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get AS
+    /// Get DP alignment score.
     pub fn as_(&self) -> Option<&i64> {
         self.optional.get("AS").map(|tag| match tag {
             Tag::AS(t) => t.get_int().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get SA
+    /// Get a list of other supplementary alignments.
     pub fn sa(&self) -> Option<&String> {
         self.optional.get("SA").map(|tag| match tag {
             Tag::SA(t) => t.get_string().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get ms
+    /// Get DP score of the max scoring segment in the alignment.
     pub fn ms(&self) -> Option<&i64> {
         self.optional.get("ms").map(|tag| match tag {
             Tag::ms(t) => t.get_int().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get nn
+    /// Get number of ambiguous bases in the alignment.
     pub fn nn(&self) -> Option<&i64> {
         self.optional.get("nn").map(|tag| match tag {
             Tag::nn(t) => t.get_int().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get ts
+    /// Get transcript strand (splice mode only).
     pub fn ts(&self) -> Option<&char> {
         self.optional.get("ts").map(|tag| match tag {
             Tag::ts(t) => t.get_char().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get cg
+    /// Get CIGAR string (only in PAF).
     pub fn cg(&self) -> Option<&String> {
         self.optional.get("cg").map(|tag| match tag {
             Tag::cg(t) => t.get_string().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get cs
+    /// Get difference string.
     pub fn cs(&self) -> Option<&String> {
         self.optional.get("cs").map(|tag| match tag {
             Tag::cs(t) => t.get_string().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get dv
+    /// Get approximate per-base sequence divergence.
     pub fn dv(&self) -> Option<&f64> {
         self.optional.get("dv").map(|tag| match tag {
             Tag::dv(t) => t.get_float().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get de
+    /// Get gap-compressed per-base sequence divergence.
     pub fn de(&self) -> Option<&f64> {
         self.optional.get("de").map(|tag| match tag {
             Tag::de(t) => t.get_float().unwrap(),
             _ => panic!("Invalid tag"),
         })
     }
-    /// Get rl
+    /// Get length of query regions harboring repetitive seeds.
     pub fn rl(&self) -> Option<&i64> {
         self.optional.get("rl").map(|tag| match tag {
             Tag::rl(t) => t.get_int().unwrap(),
@@ -352,9 +356,12 @@ pub struct Reader<R> {
 }
 
 impl Reader<File> {
+    /// Creates a new PAF parser from a file path.
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Reader<File>> {
         Ok(Reader::new(File::open(path)?))
     }
+
+    /// Creates a new PAF parser from a reader.
     pub fn from_reader<R: io::Read>(rdr: R) -> Reader<R> {
         Reader::new(rdr)
     }
@@ -410,10 +417,13 @@ impl<R: io::Read> Reader<R> {
         RecordsIntoIter::new(self)
     }
 
-    /// Read a single record
+    /// Read a single record.
     pub fn read_record(&mut self) -> Result<Option<PafRecord>> {
         let mut line = String::new();
-        let bytes_read = self.reader.read_line(&mut line)?;
+        let bytes_read = match self.reader.read_line(&mut line) {
+            Ok(b) => b,
+            Err(e) => return Err(Error::new(ErrorKind::Io(e))),
+        };
 
         if bytes_read == 0 {
             return Ok(None); // EOF
@@ -427,6 +437,7 @@ impl<R: io::Read> Reader<R> {
             ))));
         }
 
+        // parse the mandatory fields
         let query_name = columns[0].to_string();
         let query_len = columns[1].parse::<u32>()?;
         let query_start = columns[2].parse::<u32>()?;
@@ -469,8 +480,6 @@ impl<R: io::Read> Reader<R> {
             optional,
         };
 
-        // Parse mandatory fields
-
         Ok(Some(record))
     }
 }
@@ -482,6 +491,7 @@ pub struct RecordsIter<'r, R: 'r> {
 }
 
 impl<'r, R: io::Read> RecordsIter<'r, R> {
+    /// Create a new iterator.
     fn new(rdr: &'r mut Reader<R>) -> RecordsIter<'r, R> {
         RecordsIter { rdr }
     }
@@ -518,6 +528,7 @@ pub struct RecordsIntoIter<R> {
 }
 
 impl<R: io::Read> RecordsIntoIter<R> {
+    /// Create a new iterator.
     fn new(rdr: Reader<R>) -> RecordsIntoIter<R> {
         RecordsIntoIter { rdr }
     }

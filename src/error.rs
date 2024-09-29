@@ -8,7 +8,7 @@ use std::{
 /// A type alias for `Result<T, paf::Error>`.
 pub type Result<T> = StdResult<T, Error>;
 
-/// Error when parsing trfr text.
+/// An error type for this crate.
 #[derive(Debug)]
 pub struct Error(Box<ErrorKind>);
 
@@ -38,8 +38,6 @@ pub enum ErrorKind {
     Int(ParseIntError),
     /// Could not convert a field into a float.
     Float(ParseFloatError),
-    /// Error during parsing.
-    Parser(String),
     /// Error whilst reading a record.
     ReadRecord(String),
 }
@@ -67,7 +65,6 @@ impl fmt::Display for Error {
             ErrorKind::Io(ref err) => write!(f, "I/O error - {}", err),
             ErrorKind::Int(ref err) => write!(f, "parsing integer error - {}", err),
             ErrorKind::Float(ref err) => write!(f, "parsing float error - {}", err),
-            ErrorKind::Parser(ref err) => write!(f, "parser error - {}", err),
             ErrorKind::ReadRecord(ref err) => write!(f, "reading record - {}", err),
         }
     }
