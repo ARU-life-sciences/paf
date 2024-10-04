@@ -1,6 +1,6 @@
 [package]
 name = "paf"
-version = "0.1.11"
+version = "0.1.12"
 edition = "2021"
 description = "Parse PAF files"
 authors = ["Max Brown <max.carter-brown@aru.ac.uk>"]
