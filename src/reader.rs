@@ -484,7 +484,7 @@ impl<R: io::Read> Reader<R> {
     }
 }
 
-/// A borrowed iterator over the records of a refer file.
+/// A borrowed iterator over the records of a PAF file.
 pub struct RecordsIter<'r, R: 'r> {
     /// The underlying reader
     rdr: &'r mut Reader<R>,
@@ -521,7 +521,7 @@ impl<'r, R: io::Read> Iterator for RecordsIter<'r, R> {
     }
 }
 
-/// An owned iterator over the records of a refer file.
+/// An owned iterator over the records of a PAF file.
 pub struct RecordsIntoIter<R> {
     /// The underlying reader.
     rdr: Reader<R>,
