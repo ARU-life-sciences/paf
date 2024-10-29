@@ -1,8 +1,8 @@
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::Write;
 use std::path::Path;
 
-use crate::{PafRecord, Tag, Type};
+use crate::{PafRecord, Result, Tag, Type};
 
 /// Struct representing a PAF file writer.
 pub struct Writer<W: Write> {
@@ -11,7 +11,7 @@ pub struct Writer<W: Write> {
 
 impl Writer<File> {
     /// Creates a new PAF writer from a file path.
-    pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Writer<File>> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Writer<File>> {
         let file = File::create(path)?;
         Ok(Writer::new(file))
     }
@@ -24,7 +24,7 @@ impl<W: Write> Writer<W> {
     }
 
     /// Writes a single `PafRecord` to the PAF file.
-    pub fn write_record(&mut self, record: &PafRecord) -> io::Result<()> {
+    pub fn write_record(&mut self, record: &PafRecord) -> Result<()> {
         write!(
             self.writer,
             "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
@@ -64,17 +64,17 @@ impl<W: Write> Writer<W> {
             }
         }
 
-        writeln!(self.writer)
+        writeln!(self.writer).map_err(Into::into)
     }
 }
 
 /// Helper function to write optional fields based on their types.
-fn write_optional_field<W: Write>(writer: &mut W, tag: &str, value: &Type) -> io::Result<()> {
+fn write_optional_field<W: Write>(writer: &mut W, tag: &str, value: &Type) -> Result<()> {
     match value {
-        Type::Int(v) => write!(writer, "\t{}:i:{}", tag, v),
-        Type::Float(v) => write!(writer, "\t{}:f:{:.4}", tag, v),
-        Type::String(v) => write!(writer, "\t{}:Z:{}", tag, v),
-        Type::Char(v) => write!(writer, "\t{}:A:{}", tag, v),
+        Type::Int(v) => write!(writer, "\t{}:i:{}", tag, v).map_err(Into::into),
+        Type::Float(v) => write!(writer, "\t{}:f:{:.4}", tag, v).map_err(Into::into),
+        Type::String(v) => write!(writer, "\t{}:Z:{}", tag, v).map_err(Into::into),
+        Type::Char(v) => write!(writer, "\t{}:A:{}", tag, v).map_err(Into::into),
     }
 }
 
