@@ -33,8 +33,11 @@ fn main() {
 mod error;
 /// The reader module provides the reader and record types.
 mod reader;
+/// The writer module provides the writer type.
+mod writer;
 
 pub use crate::{
     error::{Error, ErrorKind, Result},
     reader::{PafRecord, Reader, RecordsIntoIter, RecordsIter, Tag, Type},
+    writer::Writer,
 };

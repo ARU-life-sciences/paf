@@ -183,6 +183,39 @@ pub struct PafRecord {
 }
 
 impl PafRecord {
+    /// Create a new PAF record.
+    pub fn new(
+        query_name: String,
+        query_len: u32,
+        query_start: u32,
+        query_end: u32,
+        strand: char,
+        target_name: String,
+        target_len: u32,
+        target_start: u32,
+        target_end: u32,
+        residue_matches: u32,
+        alignment_block_len: u32,
+        mapping_quality: u8,
+        optional: HashMap<String, Tag>,
+    ) -> PafRecord {
+        PafRecord {
+            query_name,
+            query_len,
+            query_start,
+            query_end,
+            strand,
+            target_name,
+            target_len,
+            target_start,
+            target_end,
+            residue_matches,
+            alignment_block_len,
+            mapping_quality,
+            optional,
+        }
+    }
+
     /// Get the query name.
     pub fn query_name(&self) -> &str {
         &self.query_name
