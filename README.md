@@ -1,65 +1,88 @@
 # A PAF file reader and writer
 
-Simple iterator API for PAF files, along with functionality to write PAF files.
+Read and write PAF (Pairwise mApping Format) files, as produced by
+[minimap2](https://github.com/lh3/minimap2) and other aligners.
 
-## Examples
+- Iterate over records with errors that name the line and column at fault.
+- Typed accessors for the tags minimap2 writes (`record.nm()`, `record.tp()`, `record.cs()`, …).
+- Any other tag is kept too, with its SAM type, in its original order.
+- Records are plain structs: change them and write them back out.
 
-Run this example with `cargo run --release --examples ./data/5_GD_domestica.paf`. The data is in this repository.
+Upgrading from 0.2? See the [changelog](CHANGELOG.md).
 
-```rust
+## Reading
+
+```rust,no_run
 use paf::Reader;
-use std::env;
 
-fn main() {
-    let data = env::args().skip(1).next();
-
-    if let Some(filename) = data {
-        let mut reader = Reader::from_path(&filename).unwrap();
-        for record in reader.records() {
-            let record = record.unwrap();
-            println!("{:?}", record);
-        }
-    } else {
-        eprintln!("Usage: cargo run --release --examples print_paf <filename>");
-        std::process::exit(1);
+fn main() -> paf::Result<()> {
+    let mut reader = Reader::from_path("data/5_GD_domestica.paf")?;
+    for record in reader.records() {
+        let record = record?;
+        println!(
+            "{} -> {}: {:?} mismatches and gaps",
+            record.query_name,
+            record.target_name,
+            record.nm()
+        );
     }
+    Ok(())
 }
 ```
 
-Write PAF files using this API.
+Try it on the sample data in this repository:
 
-```rust
-use std::collections::HashMap;
-use crate::{Writer, PafRecord, Tag, Type, Result};
+```sh
+cargo run --release --example print_paf -- data/5_GD_domestica.paf
+```
 
-fn main() -> Result<()> {
-    // Create a new PAF file writer
+## Writing
+
+```rust,no_run
+use paf::{PafRecord, Strand, Tag, Type, Writer};
+
+fn main() -> paf::Result<()> {
     let mut writer = Writer::from_path("example.paf")?;
 
-    // Create some fake PAF records
-    let mut optional_fields1 = HashMap::new();
-    optional_fields1.insert("tp".to_string(), Tag::tp(Type::Char('P')));
-    let record1 = PafRecord::new(
-        "query1".to_owned(), 1000, 100, 500, '+',
-        "target1".to_owned(), 1500, 200, 600,
-        300, 400, 60,
-        optional_fields1,
-    );
+    let record = PafRecord {
+        query_name: "query1".into(),
+        query_len: 1000,
+        query_start: 100,
+        query_end: 500,
+        strand: Strand::Forward,
+        target_name: "target1".into(),
+        target_len: 1500,
+        target_start: 200,
+        target_end: 600,
+        residue_matches: 300,
+        alignment_block_len: 400,
+        mapping_quality: 60,
+        tags: vec![Tag::new("tp", Type::Char('P'))?, "NM:i:12".parse()?],
+    };
+    writer.write_record(&record)?;
 
-    let mut optional_fields2 = HashMap::new();
-    optional_fields2.insert("s1".to_string(), Tag::s1(Type::Int(99)));
-    optional_fields2.insert("cm".to_string(), Tag::cm(Type::Int(42)));
-    let record2 = PafRecord::new(
-        "query2".to_owned(), 2000, 150, 900, '-',
-        "target2".to_owned(), 2500, 300, 1000,
-        400, 800, 70,
-        optional_fields2,
-    );
+    // Flush explicitly so that a failed final write is reported.
+    writer.flush()
+}
+```
 
-    // Write records to the PAF file
-    writer.write_record(&record1)?;
-    writer.write_record(&record2)?;
+## Filtering and editing
 
-    Ok(())
+```rust,no_run
+use paf::{Reader, Writer};
+
+fn main() -> paf::Result<()> {
+    let mut reader = Reader::from_path("input.paf")?;
+    let mut writer = Writer::from_path("primary.paf")?;
+
+    for record in reader.records() {
+        let mut record = record?;
+        if record.tp() != Some('P') {
+            continue;
+        }
+        record.remove_tag("cg");
+        writer.write_record(&record)?;
+    }
+    writer.flush()
 }
 ```

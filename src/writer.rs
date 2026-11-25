@@ -1,158 +1,212 @@
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use crate::{PafRecord, Result, Tag, Type};
+use crate::{Error, ErrorKind, PafRecord, Result, Type};
 
-/// Struct representing a PAF file writer.
+/// Writes PAF records to a file or any [`Write`].
+///
+/// Call [`Writer::flush`] (or [`Writer::into_inner`]) when you have finished
+/// writing. A buffered writer that is simply dropped still flushes, but any
+/// error from that final write is lost.
 pub struct Writer<W: Write> {
     writer: W,
 }
 
-impl Writer<File> {
-    /// Creates a new PAF writer from a file path.
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Writer<File>> {
-        let file = File::create(path)?;
-        Ok(Writer::new(file))
+impl Writer<BufWriter<File>> {
+    /// Creates (or truncates) the file at `path` and writes to it through a
+    /// buffer.
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Ok(Writer::new(BufWriter::new(File::create(path)?)))
     }
 }
 
 impl<W: Write> Writer<W> {
-    /// Creates a new PAF writer from a writer instance.
+    /// Creates a writer over `writer`. This does not add a buffer, so wrap
+    /// an unbuffered writer such as a [`File`] in a [`BufWriter`] first.
     pub fn new(writer: W) -> Self {
         Writer { writer }
     }
 
-    /// Writes a single `PafRecord` to the PAF file.
+    /// Writes one record as a line, with tags in the order of
+    /// [`PafRecord::tags`].
+    ///
+    /// Fails without writing anything if the record cannot be represented
+    /// as PAF: a sequence name is empty, or a name or tag value contains a
+    /// tab or newline.
     pub fn write_record(&mut self, record: &PafRecord) -> Result<()> {
-        write!(
-            self.writer,
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
-            record.query_name(),
-            record.query_len(),
-            record.query_start(),
-            record.query_end(),
-            record.strand(),
-            record.target_name(),
-            record.target_len(),
-            record.target_start(),
-            record.target_end(),
-            record.residue_matches(),
-            record.alignment_block_len(),
-            record.mapping_quality(),
-        )?;
+        check_record(record)?;
+        writeln!(self.writer, "{record}")?;
+        Ok(())
+    }
 
-        for (key, tag) in record.optional_fields() {
-            match tag {
-                Tag::tp(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::cm(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::s1(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::s2(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::NM(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::MD(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::AS(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::SA(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::ms(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::nn(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::ts(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::cg(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::cs(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::dv(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::de(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::rl(value) => write_optional_field(&mut self.writer, key, value)?,
-                Tag::zd(value) => write_optional_field(&mut self.writer, key, value)?,
-            }
-        }
+    /// Flushes buffered output to the underlying writer.
+    pub fn flush(&mut self) -> Result<()> {
+        self.writer.flush()?;
+        Ok(())
+    }
 
-        writeln!(self.writer).map_err(Into::into)
+    /// Returns a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        &self.writer
+    }
+
+    /// Returns a mutable reference to the underlying writer.
+    pub fn get_mut(&mut self) -> &mut W {
+        &mut self.writer
+    }
+
+    /// Flushes and returns the underlying writer.
+    pub fn into_inner(mut self) -> Result<W> {
+        self.writer.flush()?;
+        Ok(self.writer)
     }
 }
 
-/// Helper function to write optional fields based on their types.
-fn write_optional_field<W: Write>(writer: &mut W, tag: &str, value: &Type) -> Result<()> {
-    match value {
-        Type::Int(v) => write!(writer, "\t{}:i:{}", tag, v).map_err(Into::into),
-        Type::Float(v) => write!(writer, "\t{}:f:{:.4}", tag, v).map_err(Into::into),
-        Type::String(v) => write!(writer, "\t{}:Z:{}", tag, v).map_err(Into::into),
-        Type::Char(v) => write!(writer, "\t{}:A:{}", tag, v).map_err(Into::into),
+fn is_line_break_or_tab(c: char) -> bool {
+    matches!(c, '\t' | '\n' | '\r')
+}
+
+fn write_error(field: &str, msg: &str) -> Error {
+    Error::new(ErrorKind::WriteRecord(msg.into())).with_field(field)
+}
+
+/// Checks that writing `record` produces exactly one parseable PAF line.
+fn check_record(record: &PafRecord) -> Result<()> {
+    for (field, name) in [
+        ("query_name", &record.query_name),
+        ("target_name", &record.target_name),
+    ] {
+        if name.is_empty() {
+            return Err(write_error(field, "name is empty"));
+        }
+        if name.contains(is_line_break_or_tab) {
+            return Err(write_error(field, "name contains a tab or line break"));
+        }
     }
+    for tag in &record.tags {
+        let ok = match tag.value() {
+            Type::Char(c) => !is_line_break_or_tab(*c),
+            Type::String(s) | Type::Hex(s) | Type::Array(s) => !s.contains(is_line_break_or_tab),
+            Type::Int(_) | Type::Float(_) => true,
+        };
+        if !ok {
+            return Err(write_error(
+                tag.name(),
+                "value contains a tab or line break",
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
-    use crate::{PafRecord, Tag, Type};
+    use crate::{ErrorKind, Reader, Strand, Tag};
+
+    fn record(tags: Vec<Tag>) -> PafRecord {
+        PafRecord {
+            query_name: "query2".into(),
+            query_len: 2000,
+            query_start: 150,
+            query_end: 900,
+            strand: Strand::Reverse,
+            target_name: "target2".into(),
+            target_len: 2500,
+            target_start: 300,
+            target_end: 1000,
+            residue_matches: 400,
+            alignment_block_len: 800,
+            mapping_quality: 70,
+            tags,
+        }
+    }
+
+    fn write(record: &PafRecord) -> Result<String> {
+        let mut writer = Writer::new(Vec::new());
+        writer.write_record(record)?;
+        Ok(String::from_utf8(writer.into_inner()?).unwrap())
+    }
 
     #[test]
     fn test_write_record_mandatory_fields() {
-        let mut buffer = Vec::new();
-        let mut writer = Writer::new(&mut buffer);
-
-        let record = PafRecord::new(
-            "query1".to_owned(),
-            1000,
-            100,
-            500,
-            '+',
-            "target1".to_owned(),
-            1500,
-            200,
-            600,
-            300,
-            400,
-            60,
-            HashMap::new(),
-        );
-
-        writer.write_record(&record).unwrap();
-        let output = String::from_utf8(buffer).unwrap();
-
         assert_eq!(
-            output,
-            "query1\t1000\t100\t500\t+\ttarget1\t1500\t200\t600\t300\t400\t60\n"
+            write(&record(vec![])).unwrap(),
+            "query2\t2000\t150\t900\t-\ttarget2\t2500\t300\t1000\t400\t800\t70\n"
         );
     }
 
     #[test]
-    fn test_write_record_with_optional_fields() {
-        let mut buffer = Vec::new();
-        let mut writer = Writer::new(&mut buffer);
-
-        let mut optional_fields = HashMap::new();
-
-        optional_fields.insert("tp".to_string(), Tag::tp(Type::Char('P')));
-        optional_fields.insert("cm".to_string(), Tag::cm(Type::Int(42)));
-        optional_fields.insert("s1".to_string(), Tag::s1(Type::Int(99)));
-
-        let record = PafRecord::new(
-            "query2".to_owned(),
-            2000,
-            150,
-            900,
-            '-',
-            "target2".to_owned(),
-            2500,
-            300,
-            1000,
-            400,
-            800,
-            70,
-            optional_fields,
+    fn tags_are_written_in_order() {
+        let tags = vec![
+            Tag::new("tp", Type::Char('P')).unwrap(),
+            Tag::new("cm", Type::Int(42)).unwrap(),
+            Tag::new("s1", Type::Int(99)).unwrap(),
+            "cs:Z::10*ag:5".parse().unwrap(),
+            "ML:B:C,1,2".parse().unwrap(),
+        ];
+        assert_eq!(
+            write(&record(tags)).unwrap(),
+            "query2\t2000\t150\t900\t-\ttarget2\t2500\t300\t1000\t400\t800\t70\
+             \ttp:A:P\tcm:i:42\ts1:i:99\tcs:Z::10*ag:5\tML:B:C,1,2\n"
         );
+    }
 
-        writer.write_record(&record).unwrap();
-        let output = String::from_utf8(buffer).unwrap();
+    #[test]
+    fn floats_keep_full_precision() {
+        let output = write(&record(vec![
+            Tag::new("dv", Type::Float(0.00012345)).unwrap()
+        ]));
+        assert!(output.unwrap().ends_with("\tdv:f:0.00012345\n"));
+    }
 
-        // as the optional fields are a map, these are printed in an arbitrary order
-        // so we have to check the output differently
+    #[test]
+    fn written_records_read_back_identically() {
+        let original = record(vec![
+            "NM:i:-3".parse().unwrap(),
+            "de:f:0.1".parse().unwrap(),
+            "cs:Z::3*ag".parse().unwrap(),
+            "XH:H:1AE3".parse().unwrap(),
+        ]);
+        let text = write(&original).unwrap();
+        let read = Reader::new(text.as_bytes()).read_record().unwrap().unwrap();
+        assert_eq!(read, original);
+    }
 
-        assert!(
-            output.contains("query2\t2000\t150\t900\t-\ttarget2\t2500\t300\t1000\t400\t800\t70")
-        );
-        assert!(output.contains("\ttp:A:P"));
-        assert!(output.contains("\tcm:i:42"));
-        assert!(output.contains("\ts1:i:99"));
+    #[test]
+    fn records_that_would_corrupt_the_file_are_rejected() {
+        let mut bad = record(vec![]);
+        bad.query_name = "a\tb".into();
+        let err = write(&bad).unwrap_err();
+        assert!(matches!(err.kind(), ErrorKind::WriteRecord(_)));
+        assert_eq!(err.field(), Some("query_name"));
+
+        let mut bad = record(vec![]);
+        bad.target_name.clear();
+        assert_eq!(write(&bad).unwrap_err().field(), Some("target_name"));
+
+        let bad = record(vec![Tag::new("cs", Type::String("a\nb".into())).unwrap()]);
+        assert_eq!(write(&bad).unwrap_err().field(), Some("cs"));
+
+        let bad = record(vec![Tag::new("tp", Type::Char('\t')).unwrap()]);
+        assert_eq!(write(&bad).unwrap_err().field(), Some("tp"));
+    }
+
+    #[test]
+    fn nothing_is_written_for_a_rejected_record() {
+        let mut writer = Writer::new(Vec::new());
+        let mut bad = record(vec![]);
+        bad.query_name = "a\nb".into();
+        assert!(writer.write_record(&bad).is_err());
+        assert!(writer.get_ref().is_empty());
+    }
+
+    #[test]
+    fn into_inner_flushes_a_buffered_writer() {
+        let mut writer = Writer::new(BufWriter::new(Vec::new()));
+        writer.write_record(&record(vec![])).unwrap();
+        let buffered = writer.into_inner().unwrap();
+        assert!(!buffered.get_ref().is_empty());
     }
 }

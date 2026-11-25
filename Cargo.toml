@@ -1,13 +1,15 @@
 [package]
 name = "paf"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
-description = "Parse PAF files"
+description = "Read and write PAF (Pairwise mApping Format) files"
 authors = ["Max Brown <max.carter-brown@aru.ac.uk>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/ARU-life-sciences/paf"
 keywords = ["parser", "paf"]
 categories = ["parsing"]
+# The sample data is 7 MB; keep it (and the tests that need it) out of the published crate.
+exclude = ["/data", "/tests", "/.github"]
 
 [dependencies]
